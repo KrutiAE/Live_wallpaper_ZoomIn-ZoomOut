@@ -4,15 +4,21 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Picture
 import android.graphics.Rect
+import android.graphics.drawable.BitmapDrawable
+import android.graphics.drawable.Drawable
+import android.graphics.drawable.PictureDrawable
 import android.os.Handler
 import android.os.Looper
 import android.service.wallpaper.WallpaperService
 import android.util.Log
 import android.view.MotionEvent
 import android.view.SurfaceHolder
+import androidx.core.content.res.ResourcesCompat
+import androidx.core.graphics.drawable.toBitmap
 import com.caverock.androidsvg.SVG
 import com.caverock.androidsvg.SVGParseException
 import com.example.livewallapeper.R
+import java.lang.Float.min
 import kotlin.math.sqrt
 
 class MyLiveWallpaperService : WallpaperService() {
@@ -24,25 +30,40 @@ class MyLiveWallpaperService : WallpaperService() {
     inner class MyWallpaperEngine : Engine() {
         private var wallpaperBitmap: Bitmap? = null
         private var scaleFactor = 1.0f
-        private var svgPicture: Picture? = null
+        private var wallpaperDrawable: Drawable? = null
         private var prevFingerDistance = 0f
         private var originalScreenWidth = 0
         private var originalScreenHeight = 0
         private var longPressHandler = Handler(Looper.myLooper()!!)
         private val longPressDelay = 2
-
+        private var svgDrawable: PictureDrawable? = null
 
         override fun onSurfaceCreated(holder: SurfaceHolder) {
             super.onSurfaceCreated(holder)
             try {
-                val svgResource =
-                    resources.openRawResource(R.raw.orange_car_ic) // Replace with your SVG resource
-                val svg: SVG = SVG.getFromInputStream(svgResource)
-                svgPicture = svg.renderToPicture()
+                val drawable = ResourcesCompat.getDrawable(resources, R.drawable.dog_river_ic, null)
+                if (drawable != null) {
+                    wallpaperDrawable = drawable
+                    val originalBitmap = drawable.toBitmap()
+                    val screenWidth = surfaceHolder.surfaceFrame.width().toFloat()
+                    val screenHeight = surfaceHolder.surfaceFrame.height().toFloat()
+                    val scaleFactorX = screenWidth / originalBitmap.width.toFloat()
+                    val scaleFactorY = screenHeight / originalBitmap.height.toFloat()
+
+                    // Use the minimum scaling factor to maintain aspect ratio
+                    scaleFactor = min(scaleFactorX, scaleFactorY)
+
+                    // Resize the bitmap to the scaled dimensions
+                    wallpaperBitmap = Bitmap.createScaledBitmap(
+                        originalBitmap,
+                        (originalBitmap.width * scaleFactor).toInt(),
+                        (originalBitmap.height * scaleFactor).toInt(),
+                        true
+                    )
+                }
             } catch (e: SVGParseException) {
                 e.printStackTrace()
             }
-
             originalScreenWidth = surfaceHolder.surfaceFrame.width()
             originalScreenHeight = surfaceHolder.surfaceFrame.height()
             drawWallpaper()
@@ -129,17 +150,15 @@ class MyLiveWallpaperService : WallpaperService() {
 
         private fun drawWallpaper() {
             val surface = surfaceHolder.surface
-            if (surface.isValid && svgPicture != null) {
+            if (surface.isValid && wallpaperDrawable != null) {
                 val canvas = surface.lockCanvas(null)
                 canvas.drawColor(Color.BLACK) // Clear the canvas
                 val scaledWidth = (originalScreenWidth * scaleFactor).toInt()
                 val scaledHeight = (originalScreenHeight * scaleFactor).toInt()
                 val left = (originalScreenWidth - scaledWidth) / 2
                 val top = (originalScreenHeight - scaledHeight) / 2
-                canvas.drawPicture(
-                    svgPicture!!,
-                    Rect(left, top, left + scaledWidth, top + scaledHeight)
-                )
+                wallpaperDrawable!!.setBounds(left, top, left + scaledWidth, top + scaledHeight)
+                wallpaperDrawable!!.draw(canvas)
                 surface.unlockCanvasAndPost(canvas)
             }
         }

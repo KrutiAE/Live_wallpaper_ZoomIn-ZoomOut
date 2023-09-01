@@ -19,6 +19,7 @@ appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "a
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
 androidsvg ={group ="com.caverock",name = "androidsvg",version.ref ="androidsvg"}
+androidx-ui-graphics-android = { group = "androidx.compose.ui", name = "ui-graphics-android", version = "1.5.0" }
 
 [plugins]
 com-android-application = { id = "com.android.application", version.ref = "agp" }
