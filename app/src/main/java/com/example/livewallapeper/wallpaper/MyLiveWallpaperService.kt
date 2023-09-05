@@ -1,6 +1,5 @@
 package com.example.livewallapeper.wallpaper
 
-import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Picture
 import android.graphics.Rect
@@ -22,7 +21,6 @@ class MyLiveWallpaperService : WallpaperService() {
     }
 
     inner class MyWallpaperEngine : Engine() {
-        private var wallpaperBitmap: Bitmap? = null
         private var scaleFactor = 1.0f
         private var svgPicture: Picture? = null
         private var prevFingerDistance = 0f
@@ -30,22 +28,23 @@ class MyLiveWallpaperService : WallpaperService() {
         private var originalScreenHeight = 0
         private var longPressHandler = Handler(Looper.myLooper()!!)
         private val longPressDelay = 2
-
+        private var svg: SVG? = null
 
         override fun onSurfaceCreated(holder: SurfaceHolder) {
             super.onSurfaceCreated(holder)
             try {
                 val svgResource =
                     resources.openRawResource(R.raw.orange_car_ic) // Replace with your SVG resource
-                val svg: SVG = SVG.getFromInputStream(svgResource)
-                svgPicture = svg.renderToPicture()
+                svg = SVG.getFromInputStream(svgResource)
+                svgPicture = svg!!.renderToPicture()
+                originalScreenWidth = surfaceHolder.surfaceFrame.width()
+                originalScreenHeight = surfaceHolder.surfaceFrame.height()
+                svg!!.documentWidth = originalScreenWidth.toFloat()
+                svg!!.documentHeight = originalScreenHeight.toFloat()
+                drawWallpaper()
             } catch (e: SVGParseException) {
                 e.printStackTrace()
             }
-
-            originalScreenWidth = surfaceHolder.surfaceFrame.width()
-            originalScreenHeight = surfaceHolder.surfaceFrame.height()
-            drawWallpaper()
         }
 
         override fun onTouchEvent(event: MotionEvent) {
@@ -84,7 +83,7 @@ class MyLiveWallpaperService : WallpaperService() {
         }
 
         private fun startZoomIn() {
-            scaleFactor *= 1.02f
+            scaleFactor *= 1.05f
             drawWallpaper()
             longPressHandler.postDelayed({
                 // startZoomIn()
@@ -97,7 +96,7 @@ class MyLiveWallpaperService : WallpaperService() {
         }
 
         private fun startZoomOut() {
-            scaleFactor /= 1.02f
+            scaleFactor /= 1.05f
             drawWallpaper()
             longPressHandler.postDelayed({
                 // startZoomOut()
@@ -132,10 +131,13 @@ class MyLiveWallpaperService : WallpaperService() {
             if (surface.isValid && svgPicture != null) {
                 val canvas = surface.lockCanvas(null)
                 canvas.drawColor(Color.BLACK) // Clear the canvas
-                val scaledWidth = (originalScreenWidth * scaleFactor).toInt()
-                val scaledHeight = (originalScreenHeight * scaleFactor).toInt()
+                val scaledWidth = (svg!!.documentWidth * scaleFactor).toInt()
+                val scaledHeight = (svg!!.documentHeight * scaleFactor).toInt()
+
+                // Calculate the left and top offsets to center the image
                 val left = (originalScreenWidth - scaledWidth) / 2
                 val top = (originalScreenHeight - scaledHeight) / 2
+
                 canvas.drawPicture(
                     svgPicture!!,
                     Rect(left, top, left + scaledWidth, top + scaledHeight)
@@ -152,8 +154,6 @@ class MyLiveWallpaperService : WallpaperService() {
 
         override fun onSurfaceDestroyed(holder: SurfaceHolder) {
             super.onSurfaceDestroyed(holder)
-            wallpaperBitmap?.recycle()
-            wallpaperBitmap = null
         }
     }
 }
